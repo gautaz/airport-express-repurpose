@@ -1,0 +1,119 @@
+= Airport express repurpose musings
+
+Lately, I have started sorting out what I could do with an airport express device I don't use anymore.
+My goal is ultimately to replace the Apple's firmware with a firmware of my own.
+
+As an initial goal, I'd like to be able to extract the original firmware and flash again the device with it to ensure I can go back and forth between firmwares.
+
+If you are interested in helping, please read the <<Next steps>> section.
+
+== Existing prior art
+
+From https://www.hsorbo.no/[Håvard Sørbø]:
+
+* https://www.hsorbo.no/2010/02/22/ax-part1
+* https://www.hsorbo.no/2010/02/23/ax-part2
+* https://www.hsorbo.no/2010/02/26/ax-part3
+* https://www.hsorbo.no/2011/04/11/ax-part4
+
+From https://www.embeddedideation.com/about/[x56]:
+
+* https://www.embeddedideation.com/2014/03/dissecting-the-airport-express/
+* https://www.embeddedideation.com/2016/04/24/airport-hacking-update/
+
+== JTAG setup
+
+Access to the JTAG (and UART) pins was operated this way:
+
+[cols="5,3,3",frame="none",grid="none"]
+|===
+a|image::./pictures/IMG_20220611_204200.jpg[]
+a|image::./pictures/IMG_20220611_232820.jpg[]
+a|image::./pictures/IMG_20220612_012753.jpg[]
+|===
+
+Here is the custom external header pinout:
+
+[ditaa]
+....
+           TDI--\   /--UART0 RX
+       TMS--\   |   |   /--GND
+unused--\   |   |   |   |
+        |   |   |   |   |
+      +-|---|---|---|---|---+
+      | |   |   |   |   |   |
+      | *-+ *-+ *-+ *-+ *-+ |
+      | | | | | | | | | | | |
+      | +-+ +-+ +-+ +-+ +-+ |
+      |                     |
+      |     +-+ +-+ +-+ +-+ |
+      |     | | | | | | | | |
+      |     *-+ *-+ *-+ *-+ |
+      |     |   |   |   |   |
+      +-----|---|---|---|---+
+            |   |   |   |
+      TCLK--/   |   |   \--VCC
+           TDO--/   \--UART0 TX
+....
+
+I am using a https://ftdichip.com/wp-content/uploads/2020/07/DS_FT2232H_Mini_Module.pdf[FT2232H Mini Module] as a JTAG adapter:
+
+image::./pictures/ft2332h.jpg[width=400]
+
+Here is the complete setup:
+
+[cols="1,1,1",frame="none",grid="none"]
+|===
+a|image::./pictures/IMG_20220728_184043.jpg[]
+a|image::./pictures/IMG_20220728_184601.jpg[]
+a|image::./pictures/IMG_20220728_184627.jpg[]
+a|image::./pictures/IMG_20220728_184310.jpg[]
+a|image::./pictures/IMG_20220728_184502.jpg[]
+a|image::./pictures/IMG_20220728_184522.jpg[]
+|===
+
+== OpenOCD startup
+
+First things first, power up the airport express device.
+
+Start OpenOCD:
+
+[source,sh]
+----
+openocd -f interface/ftdi/minimodule.cfg -f custom.cfg -f target/atheros_ar9344.cfg
+----
+
+Connect to the OpenOCD server through `telnet`:
+
+[source,sh]
+----
+telnet localhost 4444
+----
+
+== Current memory dump process
+
+Within `telnet`:
+
+[source,telnet]
+----
+reset
+halt
+reset init
+dump_image memdumps/0x80000000-0x90000000.bin 0x80000000 268435456
+----
+
+== Next steps
+
+As far as I know there is currently no OpenOCD board script for the airport express 2.
+
+The `target/atheros_ar9344.cfg` script passed to OpenOCD only gives access to the board's CPU features, this does not seem enough to operate a dump of the firmware.
+As I am quite new to JTAG/OpenOCD, I need to seek guidance.
+
+If you're interested in helping designing an OpenOCD board script for the airport express or know of any resources that might help with this task, do not hesitate to https://github.com/gautaz/airport-express-repurpose/issues[open an issue on this project], you might for instance ask me to:
+
+* operate a test on the current setup, please describe the test's steps and the intended results in the issue
+* add a pointer to any relevant details about the airport express 2
+* add a pointer to any relevant details about how to write an airport express 2 OpenOCD board script
+* point out any error in this README
+
+I will bring together all relevant information related to the airport express 2 and its associated OpenOCD board script in this README file.
